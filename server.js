@@ -1,28 +1,35 @@
+const fs = require('fs')
 const Vue = require('vue')
 const server = require('express')()
-const renderer = require('vue-server-renderer').createRenderer()
-const app = new Vue({
-    data:{
-        url: "111"
-    },
-    template: '<div>the visit url: {{url}}</div>'
-}) //vue实例
+const VueServerRenderer = require('vue-server-renderer')
+
 
 server.get('*', (req, res) => {
-   app.$data.url = req.url
-   renderer.renderToString(app, (err, html) => {
+    const app = new Vue({
+        data:{
+            url: req.url
+        },
+        template: '<div>the visit url: {{url}}</div>'
+    }) //vue实例
+
+    const template = fs.readFileSync('./index.template.html', 'utf-8') //使用一个html文件模板
+    const renderer  = VueServerRenderer.createRenderer({
+        template
+    })
+    const context = {
+        title: 'Vue SSR',
+        metas: `
+        <meta name="keywords" content="vue,ssr"/>
+        <meta name="description" content="vue ssr demo"/>
+        `,
+    }
+    
+    renderer.renderToString(app, context, (err, html) => {
+        console.log(html) //打印出的html是 模板经过ssr后的东西
     if(err) {
         res.status(500).end('internal server error')
     }
-    res.end(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-    <title>hello</title>
-    </head>
-    <body>${html}</body>
-    </html>
-    `)
+    res.end(html)
 })
 })
 
