@@ -1,38 +1,30 @@
-const fs = require('fs')
-const Vue = require('vue')
-const server = require('express')()
-const VueServerRenderer = require('vue-server-renderer')
-
-
-server.get('*', (req, res) => {
-    const app = new Vue({
-        data:{
-            url: req.url
-        },
-        template: '<div>the visit url: {{url}}</div>'
-    }) //vue实例
-
-    const template = fs.readFileSync('./index.template.html', 'utf-8') //使用一个html文件模板
-    const renderer  = VueServerRenderer.createRenderer({
-        template
-    })
-    const context = {
-        title: 'Vue SSR',
-        metas: `
-        <meta name="keywords" content="vue,ssr"/>
-        <meta name="description" content="vue ssr demo"/>
-        `,
-    }
-    
-    renderer.renderToString(app, context, (err, html) => {
-        console.log(html) //打印出的html是 模板经过ssr后的东西
-    if(err) {
-        res.status(500).end('internal server error')
-    }
-    res.end(html)
+const fs = require('fs');
+const path = require('path');
+ 
+const Vue = require('vue');
+const Koa = require('koa');
+const KoaRouter = require('koa-router');
+const serve = require('koa-static');
+const VueServerRenderer = require('vue-server-renderer');
+ 
+const serverBundle = fs.readFileSync('./dist/server.bundle.js', 'utf-8');
+const template = fs.readFileSync('./dist/index.ssr.html', 'utf-8');
+ 
+const renderer = VueServerRenderer.createBundleRenderer(serverBundle, {
+  template
 })
+ 
+const app = new Koa();
+const router = new KoaRouter();
+ 
+router.get('(.*)', async ctx => {
+  ctx.body = await renderer.renderToString();
 })
-
-server.listen(8080, () => {
-    console.log('服务器运行在8080端口...')
-})
+ 
+app.use(serve(path.resolve(__dirname, 'dist')))
+ 
+app.use(router.routes())
+ 
+app.listen(8080, () => {
+  console.log('服务器运行在8080端口...')
+});
